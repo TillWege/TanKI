@@ -1,39 +1,37 @@
-# fix für Windowsstore Python Version
-
-import os
-os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.2/bin")
-
+import numpy
 import sys
+import os
 
+os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.2/bin")
 from nltk.tokenize import RegexpTokenizer
+from nltk.corpus import stopwords
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, LSTM
+from keras.utils import np_utils
+from keras.callbacks import ModelCheckpoint
 
-#file = open("./Docs/test1.txt").read()
 
-basepath = "./Docs"
+file = open("./Docs/test1.txt").read()
 
 def tokenize_words(input):
-    input     = input.lower()
+    # lowercase everything to standardize it
+    input = input.lower()
+
+    # instantiate the tokenizer
     tokenizer = RegexpTokenizer(r'\w+')
-    tokens    = tokenizer.tokenize(input)
-    return " ".join(tokens)
+    tokens = tokenizer.tokenize(input)
 
-files = os.listdir(basepath)
+    # if the created token isn't in the stop words, make it part of "filtered"
+    filtered = filter(lambda token: token not in stopwords.words('english'), tokens)
+    return " ".join(filtered)
 
-processed_inputs = ""
-for file in files:
-    text   = open(basepath+"/"+file).read()
-    tokens = tokenize_words(text)
-    processed_inputs += tokens
-
+processed_inputs = tokenize_words(file)
 chars = sorted(list(set(processed_inputs)))
 char_to_num = dict((c, i) for i, c in enumerate(chars))
 input_len = len(processed_inputs)
 vocab_len = len(chars)
 print ("Total number of characters:", input_len)
 print ("Total vocab:", vocab_len)
-
-
-import numpy
 
 seq_length = 100
 x_data = []
@@ -62,13 +60,6 @@ X = X/float(vocab_len)
 
 y = np_utils.to_categorical(y_data)
 
-
-import tensorflow as tf
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, LSTM
-from keras.utils import np_utils
-from keras.callbacks import ModelCheckpoint
-
 model = Sequential()
 model.add(LSTM(256, input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
 model.add(Dropout(0.2))
@@ -79,12 +70,6 @@ model.add(Dropout(0.2))
 model.add(Dense(y.shape[1], activation='softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
-
-filepath = "model_weights_saved.hdf5"
-checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
-desired_callbacks = [checkpoint]
-
-model.fit(X, y, epochs=2, batch_size=512, callbacks=desired_callbacks)
 
 filename = "model_weights_saved.hdf5"
 model.load_weights(filename)
